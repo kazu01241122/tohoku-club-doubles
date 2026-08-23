@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827">
+<title>東北大クラブダブルス乱数表</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f4f6;color:#111827;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+.wrap{max-width:700px;margin:auto;padding:16px 14px 40px}.hero{background:#111827;color:white;border-radius:22px;padding:21px 19px;margin-bottom:13px}
+h1{font-size:22px;margin:0 0 5px}.sub{font-size:13px;opacity:.8}.card{background:white;border-radius:18px;padding:17px;margin:12px 0;box-shadow:0 2px 10px #0000000a}
+h2{font-size:17px;margin:0}.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.chip{border:1px solid #d1d5db;background:#fff;border-radius:12px;padding:12px 5px;font-weight:800;font-size:15px}.chip.on{background:#111827;color:#fff;border-color:#111827}
+button{font-family:inherit;cursor:pointer}.btn{border:0;border-radius:13px;padding:12px 15px;font-weight:800;font-size:14px}.primary{background:#111827;color:#fff;width:100%;margin-top:13px}.secondary{background:#e5e7eb;color:#111827}.danger{background:#fee2e2;color:#991b1b}.muted{font-size:12px;color:#6b7280;line-height:1.6;margin-top:8px}
+.topline{display:flex;justify-content:space-between;align-items:center;gap:10px}.stat{font-size:13px;color:#6b7280}
+.match{border:1px solid #e5e7eb;border-radius:16px;padding:13px;margin-top:10px}.match-title{font-weight:900;margin-bottom:10px}.court{display:grid;grid-template-columns:1fr 28px 1fr;align-items:center;gap:7px}.team{background:#f9fafb;border-radius:11px;padding:12px 6px;text-align:center;font-weight:900}.vs{text-align:center;color:#9ca3af;font-weight:900}.bye{font-size:12px;color:#6b7280;margin-top:9px}.empty{text-align:center;color:#6b7280;padding:16px 0}
+.history{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.pill{background:#f3f4f6;border-radius:999px;padding:6px 9px;font-size:12px}
+@media(min-width:520px){.chips{grid-template-columns:repeat(6,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>🏸 東北大クラブダブルス乱数表</h1>
+    <div class="sub">今日の中で「ペア・対戦・休み」が偏らないように自動調整</div>
+  </div>
+
+  <div class="card">
+    <div class="topline"><h2>① 参加者を選択</h2><span id="count" class="stat">0人</span></div>
+    <div id="chips" class="chips"></div>
+    <div class="muted">4〜12人。参加者を変えると当日の記録はリセットされます。</div>
+    <div style="margin-top:14px;font-weight:800;font-size:14px">コート数</div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button type="button" id="court1" class="btn secondary" onclick="setCourts(1)">1コート</button>
+      <button type="button" id="court2" class="btn secondary" onclick="setCourts(2)">2コート</button>
+    </div>
+    <button type="button" class="btn primary" onclick="nextMatch()">🏸 次の試合を作る</button>
+  </div>
+
+  <div class="card">
+    <div class="topline"><h2>② 今日の組み合わせ</h2><button type="button" class="btn danger" onclick="resetDay()">リセット</button></div>
+    <div id="result" class="empty">参加者を選んで「次の試合を作る」を押してください。</div>
+  </div>
+</div>
+
+<script>
+let selected=new Set(), rounds=[], pairCounts={}, oppCounts={}, playCounts={}, byeCounts={};
+let courtCount=1;
+
+const chips=document.getElementById('chips');
+for(let i=1;i<=12;i++){
+ const b=document.createElement('button'); b.className='chip'; b.textContent=i;
+ b.onclick=()=>{
+   if(selected.has(i)) selected.delete(i); else selected.add(i);
+   b.classList.toggle('on',selected.has(i));
+   document.getElementById('count').textContent=selected.size+'人';
+   resetRecords();
+ };
+ chips.appendChild(b);
+}
+setCourts(1);
+
+function key(a,b){return [a,b].sort((x,y)=>x-y).join('-')}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function setCourts(n){
+  courtCount=n;
+  document.getElementById('court1').style.background=n===1?'#111827':'#e5e7eb';
+  document.getElementById('court1').style.color=n===1?'#fff':'#111827';
+  document.getElementById('court2').style.background=n===2?'#111827':'#e5e7eb';
+  document.getElementById('court2').style.color=n===2?'#fff':'#111827';
+  resetRecords();
+}
+function resetRecords(){rounds=[];pairCounts={};oppCounts={};playCounts={};byeCounts={};render()}
+function resetDay(){rounds=[];pairCounts={};oppCounts={};playCounts={};byeCounts={};render()}
+
+function candidateScore(p, n){
+ let score=0;
+ // Prefer people with fewer appearances. Very strong priority.
+ p.forEach(x=>score += (playCounts[x]||0)*1200);
+ // Penalize being rested repeatedly.
+ p.slice(n).forEach(x=>score += (byeCounts[x]||0)*300);
+ // Random tie breaker.
+ score += Math.random()*80;
+ return score;
+}
+
+function makeCandidate(people){
+ const n=people.length;
+ const maxCourts=Math.min(courtCount, Math.floor(n/4));
+ const usable=maxCourts*4;
+ let best=null,bestScore=Infinity;
+ for(let t=0;t<5000;t++){
+   const p=shuffle(people);
+   const matches=[]; const bye=p.slice(usable);
+   for(let i=0;i<usable;i+=4){
+     matches.push([[p[i],p[i+1]],[p[i+2],p[i+3]]]);
+   }
+   let score=candidateScore(p,usable);
+   for(const m of matches){
+     const [a,b]=m[0],[c,d]=m[1];
+     // Same pair is heavily penalized.
+     score += (pairCounts[key(a,b)]||0)*10000;
+     score += (pairCounts[key(c,d)]||0)*10000;
+     // Same opponent pair is penalized.
+     for(const [x,y] of [[a,c],[a,d],[b,c],[b,d]])
+       score += (oppCounts[key(x,y)]||0)*1600;
+   }
+   // Avoid putting the same 4 together repeatedly.
+   const groupKeys=matches.map(m=>m.flat().sort((a,b)=>a-b).join('-'));
+   for(const g of groupKeys){
+     const previous=rounds.some(r=>r.matches.some(m=>m.flat().sort((a,b)=>a-b).join('-')===g));
+     if(previous) score+=2500;
+   }
+   if(score<bestScore){bestScore=score;best={matches,bye}}
+ }
+ return best;
+}
+
+function nextMatch(){
+ const people=Array.from(selected).sort((a,b)=>a-b);
+ const out=document.getElementById('result');
+ if(people.length<4){out.innerHTML='<div class="empty">4人以上選んでください。</div>';return}
+ people.forEach(x=>{if(playCounts[x]==null)playCounts[x]=0;if(byeCounts[x]==null)byeCounts[x]=0});
+ const r=makeCandidate(people);
+ rounds.push(r);
+ r.matches.forEach(m=>{
+   m.flat().forEach(x=>playCounts[x]++);
+   const [a,b]=m[0],[c,d]=m[1];
+   pairCounts[key(a,b)]=(pairCounts[key(a,b)]||0)+1;
+   pairCounts[key(c,d)]=(pairCounts[key(c,d)]||0)+1;
+   [[a,c],[a,d],[b,c],[b,d]].forEach(([x,y])=>oppCounts[key(x,y)]=(oppCounts[key(x,y)]||0)+1);
+ });
+ r.bye.forEach(x=>byeCounts[x]=(byeCounts[x]||0)+1);
+ render();
+}
+
+function render(){
+ const out=document.getElementById('result');
+ if(!rounds.length){out.innerHTML='<div class="empty">参加者を選んで「次の試合を作る」を押してください。</div>';return}
+ let html='';
+ rounds.forEach((r,i)=>{
+   html+=`<div class="match"><div class="match-title">第${i+1}試合</div>`;
+   r.matches.forEach((m,idx)=>{
+     html+=`<div style="font-size:12px;color:#6b7280;margin:${idx? '10px':'0'}px 0 6px">コート${idx+1}</div>`;
+     html+=`<div class="court"><div class="team">${m[0][0]}・${m[0][1]}</div><div class="vs">VS</div><div class="team">${m[1][0]}・${m[1][1]}</div></div>`;
+   });
+   if(r.bye.length) html+=`<div class="bye">休み：${r.bye.join('・')}</div>`;
+   html+='</div>';
+ });
+ html+=`<div class="history"><span class="pill">試合数：${rounds.length}</span>`;
+ const vals=Array.from(selected).map(x=>`${x}: ${playCounts[x]||0}試合`).join('　');
+ html+=`<span class="pill">${vals}</span></div>`;
+ out.innerHTML=html;
+}
+</script>
+</body>
+</html>
