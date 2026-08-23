@@ -48,26 +48,27 @@ let courtCount=1;
 
 const chips=document.getElementById('chips');
 
-for(let i=1;i<=12;i++){
+for(let n=4;n<=12;n++){
   const b=document.createElement('button');
 
   b.type='button';
   b.className='chip';
-  b.textContent=i;
+  b.textContent=n+'人';
 
-  b.addEventListener('click',(e)=>{
-    e.preventDefault();
-    e.stopPropagation();
+  b.addEventListener('click',()=>{
+    selected=new Set();
 
-    if(selected.has(i)){
-      selected.delete(i);
-      b.classList.remove('on');
-    }else{
+    for(let i=1;i<=n;i++){
       selected.add(i);
-      b.classList.add('on');
     }
 
-    document.getElementById('count').textContent=selected.size+'人';
+    document.querySelectorAll('.chip').forEach(x=>{
+      x.classList.remove('on');
+    });
+
+    b.classList.add('on');
+
+    document.getElementById('count').textContent=n+'人';
     resetRecords();
   });
 
