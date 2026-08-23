@@ -46,17 +46,34 @@ button{font-family:inherit;cursor:pointer}.btn{border:0;border-radius:13px;paddi
 let selected=new Set(), rounds=[], pairCounts={}, oppCounts={}, playCounts={}, byeCounts={};
 let courtCount=1;
 
-const chips=document.getElementById('chips');
+const const chips=document.getElementById('chips');
+
 for(let i=1;i<=12;i++){
- const b=document.createElement('button'); b.className='chip'; b.textContent=i;
- b.onclick=()=>{
-   if(selected.has(i)) selected.delete(i); else selected.add(i);
-   b.classList.toggle('on',selected.has(i));
-   document.getElementById('count').textContent=selected.size+'人';
-   resetRecords();
- };
- chips.appendChild(b);
+  const b=document.createElement('button');
+
+  b.type='button';
+  b.className='chip';
+  b.textContent=i;
+
+  b.addEventListener('click',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+
+    if(selected.has(i)){
+      selected.delete(i);
+      b.classList.remove('on');
+    }else{
+      selected.add(i);
+      b.classList.add('on');
+    }
+
+    document.getElementById('count').textContent=selected.size+'人';
+    resetRecords();
+  });
+
+  chips.appendChild(b);
 }
+
 setCourts(1);
 
 function key(a,b){return [a,b].sort((x,y)=>x-y).join('-')}
