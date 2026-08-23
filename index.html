@@ -153,21 +153,43 @@ function nextMatch(){
 
 function render(){
  const out=document.getElementById('result');
- if(!rounds.length){out.innerHTML='<div class="empty">参加者を選んで「次の試合を作る」を押してください。</div>';return}
+
+ if(!rounds.length){
+   out.innerHTML='<div class="empty">参加者を選んで「次の試合を作る」を押してください。</div>';
+   return;
+ }
+
  let html='';
- rounds.forEach((r,i)=>{
-   html+=`<div class="match"><div class="match-title">第${i+1}試合</div>`;
+
+ // 最新の試合を上に表示
+ rounds.slice().reverse().forEach((r,reverseIndex)=>{
+   const i=rounds.length-1-reverseIndex;
+
+   html+=`<div class="match">`;
+   html+=`<div class="match-title">第${i+1}試合</div>`;
+
    r.matches.forEach((m,idx)=>{
-     html+=`<div style="font-size:12px;color:#6b7280;margin:${idx? '10px':'0'}px 0 6px">コート${idx+1}</div>`;
+     html+=`<div style="font-size:12px;color:#6b7280;margin:${idx?'10px':'0'}px 0 6px">コート${idx+1}</div>`;
      html+=`<div class="court"><div class="team">${m[0][0]}・${m[0][1]}</div><div class="vs">VS</div><div class="team">${m[1][0]}・${m[1][1]}</div></div>`;
    });
-   if(r.bye.length) html+=`<div class="bye">休み：${r.bye.join('・')}</div>`;
+
+   if(r.bye.length){
+     html+=`<div class="bye">休み：${r.bye.join('・')}</div>`;
+   }
+
    html+='</div>';
  });
+
  html+=`<div class="history"><span class="pill">試合数：${rounds.length}</span>`;
- const vals=Array.from(selected).map(x=>`${x}: ${playCounts[x]||0}試合`).join('　');
+
+ const vals=Array.from(selected)
+   .map(x=>`${x}: ${playCounts[x]||0}試合`)
+   .join('　');
+
  html+=`<span class="pill">${vals}</span></div>`;
+
  out.innerHTML=html;
+
 }
 </script>
 </body>
