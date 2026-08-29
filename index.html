@@ -113,7 +113,20 @@ function makeCandidate(people){
      matches.push([[p[i],p[i+1]],[p[i+2],p[i+3]]]);
    }
    let score=candidateScore(p,usable);
-   for(const m of matches){
+   // 2連続で休んでいる人は、次の試合では休ませない
+for(const x of bye){
+  const lastRound = rounds[rounds.length-1];
+  const secondLastRound = rounds[rounds.length-2];
+
+  const lastBye = lastRound && lastRound.bye.includes(x);
+  const secondLastBye = secondLastRound && secondLastRound.bye.includes(x);
+
+  if(lastBye && secondLastBye){
+    score += 100000;
+  }
+}
+
+for(const m of matches){
      const [a,b]=m[0],[c,d]=m[1];
      // Same pair is heavily penalized.
      score += (pairCounts[key(a,b)]||0)*10000;
